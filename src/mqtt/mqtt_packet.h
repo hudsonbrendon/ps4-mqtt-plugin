@@ -33,4 +33,13 @@ int mqtt_encode_publish(uint8_t *buf, size_t buflen,
                         const uint8_t *payload, size_t payload_len,
                         uint8_t qos, int retain);
 
+int mqtt_encode_pingreq(uint8_t *buf, size_t buflen);
+int mqtt_encode_disconnect(uint8_t *buf, size_t buflen);
+
+/* Returns 0 on success and sets *return_code; non-zero on parse failure. */
+int mqtt_parse_connack(const uint8_t *buf, size_t buflen, uint8_t *return_code);
+
+/* Returns 1 if the bytes match a PINGRESP packet, 0 otherwise. */
+int mqtt_is_pingresp(const uint8_t *buf, size_t buflen);
+
 #endif

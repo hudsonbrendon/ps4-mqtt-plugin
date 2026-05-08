@@ -151,3 +151,30 @@ int mqtt_encode_publish(uint8_t *buf, size_t buflen,
     }
     return (int)pos;
 }
+
+int mqtt_encode_pingreq(uint8_t *buf, size_t buflen) {
+    if (buflen < 2) return -1;
+    buf[0] = 0xC0;
+    buf[1] = 0x00;
+    return 2;
+}
+
+int mqtt_encode_disconnect(uint8_t *buf, size_t buflen) {
+    if (buflen < 2) return -1;
+    buf[0] = 0xE0;
+    buf[1] = 0x00;
+    return 2;
+}
+
+int mqtt_parse_connack(const uint8_t *buf, size_t buflen, uint8_t *return_code) {
+    if (!buf || !return_code || buflen < 4) return -1;
+    if (buf[0] != 0x20) return -1;
+    if (buf[1] != 0x02) return -1;
+    *return_code = buf[3];
+    return 0;
+}
+
+int mqtt_is_pingresp(const uint8_t *buf, size_t buflen) {
+    if (!buf || buflen < 2) return 0;
+    return (buf[0] == 0xD0 && buf[1] == 0x00) ? 1 : 0;
+}

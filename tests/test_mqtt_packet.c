@@ -145,6 +145,54 @@ MU_TEST(test_publish_retain_flag) {
     mu_assert_int_eq(0x31, buf[0]);
 }
 
+MU_TEST(test_pingreq_bytes) {
+    uint8_t buf[4];
+    int n = mqtt_encode_pingreq(buf, sizeof(buf));
+    mu_assert_int_eq(2, n);
+    mu_assert_int_eq(0xC0, buf[0]);
+    mu_assert_int_eq(0x00, buf[1]);
+}
+
+MU_TEST(test_disconnect_bytes) {
+    uint8_t buf[4];
+    int n = mqtt_encode_disconnect(buf, sizeof(buf));
+    mu_assert_int_eq(2, n);
+    mu_assert_int_eq(0xE0, buf[0]);
+    mu_assert_int_eq(0x00, buf[1]);
+}
+
+MU_TEST(test_parse_connack_accepted) {
+    uint8_t pkt[] = {0x20, 0x02, 0x00, 0x00};
+    uint8_t return_code = 0xFF;
+    int rc = mqtt_parse_connack(pkt, sizeof(pkt), &return_code);
+    mu_assert_int_eq(0, rc);
+    mu_assert_int_eq(0x00, return_code);
+}
+
+MU_TEST(test_parse_connack_rejected) {
+    uint8_t pkt[] = {0x20, 0x02, 0x00, 0x05}; /* not authorized */
+    uint8_t return_code = 0xFF;
+    int rc = mqtt_parse_connack(pkt, sizeof(pkt), &return_code);
+    mu_assert_int_eq(0, rc);
+    mu_assert_int_eq(0x05, return_code);
+}
+
+MU_TEST(test_parse_connack_wrong_type) {
+    uint8_t pkt[] = {0x30, 0x02, 0x00, 0x00};
+    uint8_t return_code = 0;
+    int rc = mqtt_parse_connack(pkt, sizeof(pkt), &return_code);
+    mu_check(rc != 0);
+}
+
+MU_TEST(test_is_pingresp) {
+    uint8_t ok[]   = {0xD0, 0x00};
+    uint8_t bad1[] = {0xC0, 0x00};
+    uint8_t bad2[] = {0xD0};
+    mu_check(mqtt_is_pingresp(ok, sizeof(ok)) == 1);
+    mu_check(mqtt_is_pingresp(bad1, sizeof(bad1)) == 0);
+    mu_check(mqtt_is_pingresp(bad2, sizeof(bad2)) == 0);
+}
+
 MU_TEST_SUITE(mqtt_packet_suite) {
     MU_RUN_TEST(test_varint_encode_one_byte);
     MU_RUN_TEST(test_varint_encode_two_bytes);
@@ -155,4 +203,10 @@ MU_TEST_SUITE(mqtt_packet_suite) {
     MU_RUN_TEST(test_connect_buffer_too_small);
     MU_RUN_TEST(test_publish_qos0_no_retain);
     MU_RUN_TEST(test_publish_retain_flag);
+    MU_RUN_TEST(test_pingreq_bytes);
+    MU_RUN_TEST(test_disconnect_bytes);
+    MU_RUN_TEST(test_parse_connack_accepted);
+    MU_RUN_TEST(test_parse_connack_rejected);
+    MU_RUN_TEST(test_parse_connack_wrong_type);
+    MU_RUN_TEST(test_is_pingresp);
 }
