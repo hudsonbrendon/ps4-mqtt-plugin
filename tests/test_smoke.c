@@ -2,6 +2,7 @@
 #include "test_config.c"
 #include "test_mqtt_packet.c"
 #include "test_ha_discovery.c"
+#include "test_publisher.c"
 
 MU_TEST(test_truth) {
     mu_check(1 == 1);
@@ -16,6 +17,7 @@ int main(void) {
     MU_RUN_SUITE(config_suite);
     MU_RUN_SUITE(mqtt_packet_suite);
     MU_RUN_SUITE(ha_suite);
+    MU_RUN_SUITE(publisher_suite);
     MU_REPORT();
     return MU_EXIT_CODE;
 }

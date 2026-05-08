@@ -12,6 +12,7 @@ TEST_BIN  = $(BUILD_DIR)/tests
 LIB_HOST_SOURCES = \
     src/log_host.c \
     src/config.c \
+    src/publisher.c \
     src/mqtt/mqtt_packet.c \
     src/mqtt/mqtt_socket_host.c \
     src/ha/ha_discovery.c \
