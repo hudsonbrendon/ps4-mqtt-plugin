@@ -8,7 +8,10 @@ BUILD_DIR = build
 TEST_BIN  = $(BUILD_DIR)/tests
 
 # Test sources are added as more tasks land.
-TEST_SOURCES = tests/test_smoke.c
+LIB_HOST_SOURCES = \
+    src/log_host.c
+
+TEST_SOURCES = tests/test_smoke.c $(LIB_HOST_SOURCES)
 
 .PHONY: all test clean
 
