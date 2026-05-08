@@ -1,7 +1,7 @@
 # Host build (tests). PS4 build is added in Phase 2.
 CC       ?= cc
 CFLAGS    = -std=c99 -Wall -Wextra -Wpedantic -O0 -g \
-            -Isrc -Ithird_party/minunit -Ithird_party/cJSON
+            -Isrc -Isrc/mqtt -Ithird_party/minunit -Ithird_party/cJSON
 LDFLAGS   =
 
 BUILD_DIR = build
@@ -11,6 +11,7 @@ TEST_BIN  = $(BUILD_DIR)/tests
 LIB_HOST_SOURCES = \
     src/log_host.c \
     src/config.c \
+    src/mqtt/mqtt_packet.c \
     third_party/cJSON/cJSON.c
 
 TEST_SOURCES = \
