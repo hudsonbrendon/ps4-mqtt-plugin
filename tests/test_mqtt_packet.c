@@ -111,6 +111,40 @@ MU_TEST(test_connect_buffer_too_small) {
     mu_check(n < 0);
 }
 
+MU_TEST(test_publish_qos0_no_retain) {
+    uint8_t buf[64];
+    int n = mqtt_encode_publish(buf, sizeof(buf), "ps4/sala/state",
+                                (const uint8_t *)"on", 2,
+                                /*qos*/ 0, /*retain*/ 0);
+    mu_check(n > 0);
+    /* fixed header byte: 0x30 = PUBLISH, qos 0, no retain, no dup */
+    mu_assert_int_eq(0x30, buf[0]);
+
+    int idx = 1;
+    uint32_t remlen = 0;
+    int rl = mqtt_varint_decode(buf + idx, sizeof(buf) - idx, &remlen);
+    idx += rl;
+    /* topic length = 14 ("ps4/sala/state") */
+    mu_assert_int_eq(0x00, buf[idx++]);
+    mu_assert_int_eq(0x0E, buf[idx++]);
+    mu_check(memcmp(buf + idx, "ps4/sala/state", 14) == 0);
+    idx += 14;
+    mu_check(memcmp(buf + idx, "on", 2) == 0);
+
+    /* remaining length = 2 (topic length bytes) + 14 (topic) + 2 (payload) = 18 */
+    mu_check(remlen == 18);
+}
+
+MU_TEST(test_publish_retain_flag) {
+    uint8_t buf[64];
+    int n = mqtt_encode_publish(buf, sizeof(buf), "x",
+                                (const uint8_t *)"y", 1,
+                                /*qos*/ 0, /*retain*/ 1);
+    mu_check(n > 0);
+    /* 0x30 | 0x01 = 0x31 (retain bit) */
+    mu_assert_int_eq(0x31, buf[0]);
+}
+
 MU_TEST_SUITE(mqtt_packet_suite) {
     MU_RUN_TEST(test_varint_encode_one_byte);
     MU_RUN_TEST(test_varint_encode_two_bytes);
@@ -119,4 +153,6 @@ MU_TEST_SUITE(mqtt_packet_suite) {
     MU_RUN_TEST(test_varint_encode_buffer_too_small);
     MU_RUN_TEST(test_connect_basic_fields);
     MU_RUN_TEST(test_connect_buffer_too_small);
+    MU_RUN_TEST(test_publish_qos0_no_retain);
+    MU_RUN_TEST(test_publish_retain_flag);
 }

@@ -28,4 +28,9 @@ typedef struct {
 int mqtt_encode_connect(uint8_t *buf, size_t buflen,
                         const mqtt_connect_opts_t *opts);
 
+int mqtt_encode_publish(uint8_t *buf, size_t buflen,
+                        const char *topic,
+                        const uint8_t *payload, size_t payload_len,
+                        uint8_t qos, int retain);
+
 #endif

@@ -116,3 +116,38 @@ int mqtt_encode_connect(uint8_t *buf, size_t buflen,
 
     return (int)pos;
 }
+
+int mqtt_encode_publish(uint8_t *buf, size_t buflen,
+                        const char *topic,
+                        const uint8_t *payload, size_t payload_len,
+                        uint8_t qos, int retain) {
+    if (!buf || !topic) return -1;
+    if (qos != 0) return -1; /* MVP: QoS 0 only */
+    size_t topic_len = strlen(topic);
+    if (topic_len > 0xFFFF) return -1;
+
+    uint32_t remaining = (uint32_t)(2 + topic_len + payload_len);
+    size_t pos = 0;
+
+    if (pos >= buflen) return -1;
+    uint8_t header = 0x30; /* PUBLISH, qos 0, dup 0 */
+    if (retain) header |= 0x01;
+    buf[pos++] = header;
+
+    int rl = mqtt_varint_encode(buf + pos, buflen - pos, remaining);
+    if (rl < 0) return -1;
+    pos += (size_t)rl;
+
+    if (pos + 2 + topic_len > buflen) return -1;
+    buf[pos++] = (uint8_t)(topic_len >> 8);
+    buf[pos++] = (uint8_t)(topic_len & 0xFF);
+    memcpy(buf + pos, topic, topic_len);
+    pos += topic_len;
+
+    if (pos + payload_len > buflen) return -1;
+    if (payload_len > 0) {
+        memcpy(buf + pos, payload, payload_len);
+        pos += payload_len;
+    }
+    return (int)pos;
+}
