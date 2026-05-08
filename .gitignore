@@ -1,0 +1,19 @@
+# Build artifacts
+build/
+*.o
+*.prx
+*.elf
+*.self
+
+# Test binaries
+tests/bin/
+*.test
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Local config (never commit secrets)
+config.json
