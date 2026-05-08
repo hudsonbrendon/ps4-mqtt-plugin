@@ -12,6 +12,7 @@ LIB_HOST_SOURCES = \
     src/log_host.c \
     src/config.c \
     src/mqtt/mqtt_packet.c \
+    src/mqtt/mqtt_socket_host.c \
     third_party/cJSON/cJSON.c
 
 TEST_SOURCES = \
