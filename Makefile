@@ -32,3 +32,14 @@ test: $(BUILD_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+INTEGRATION_BIN     = $(BUILD_DIR)/integration
+INTEGRATION_SOURCES = tests/integration/test_mqtt_integration.c \
+                      $(LIB_HOST_SOURCES) \
+                      src/mqtt/mqtt_client.c
+
+.PHONY: integration
+
+integration: $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(INTEGRATION_SOURCES) -o $(INTEGRATION_BIN) $(LDFLAGS)
+	./tests/integration/run_integration.sh
