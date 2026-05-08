@@ -1,5 +1,7 @@
 #include "mqtt_packet.h"
 
+#include <string.h>
+
 int mqtt_varint_encode(uint8_t *buf, size_t buflen, uint32_t value) {
     if (value > 268435455u) return -1;
     int written = 0;
@@ -29,4 +31,88 @@ int mqtt_varint_decode(const uint8_t *buf, size_t buflen, uint32_t *out) {
         multiplier *= 128;
     }
     return -1; /* malformed: 5+ bytes */
+}
+
+static int write_u16(uint8_t *buf, size_t buflen, size_t pos, uint16_t v) {
+    if (pos + 2 > buflen) return -1;
+    buf[pos]   = (uint8_t)(v >> 8);
+    buf[pos+1] = (uint8_t)(v & 0xFF);
+    return 0;
+}
+
+static int write_string(uint8_t *buf, size_t buflen, size_t *pos,
+                        const char *s) {
+    size_t len = strlen(s);
+    if (len > 0xFFFF) return -1;
+    if (*pos + 2 + len > buflen) return -1;
+    buf[(*pos)++] = (uint8_t)(len >> 8);
+    buf[(*pos)++] = (uint8_t)(len & 0xFF);
+    memcpy(buf + *pos, s, len);
+    *pos += len;
+    return 0;
+}
+
+int mqtt_encode_connect(uint8_t *buf, size_t buflen,
+                        const mqtt_connect_opts_t *opts) {
+    if (!buf || !opts || !opts->client_id) return -1;
+
+    /* Build payload first to know remaining length. */
+    uint8_t payload[512];
+    size_t plen = 0;
+
+    if (write_string(payload, sizeof(payload), &plen, opts->client_id) < 0)
+        return -1;
+
+    uint8_t flags = 0;
+    if (opts->clean_session) flags |= 0x02;
+    if (opts->will_topic) {
+        flags |= 0x04;
+        flags |= (uint8_t)((opts->will_qos & 0x03) << 3);
+        if (opts->will_retain) flags |= 0x20;
+        if (write_string(payload, sizeof(payload), &plen, opts->will_topic) < 0)
+            return -1;
+        if (write_string(payload, sizeof(payload), &plen,
+                         opts->will_payload ? opts->will_payload : "") < 0)
+            return -1;
+    }
+    if (opts->username) {
+        flags |= 0x80;
+        if (write_string(payload, sizeof(payload), &plen, opts->username) < 0)
+            return -1;
+    }
+    if (opts->password) {
+        flags |= 0x40;
+        if (write_string(payload, sizeof(payload), &plen, opts->password) < 0)
+            return -1;
+    }
+
+    /* Variable header: protocol name + level + flags + keepalive. */
+    uint8_t varhdr[] = {
+        0x00, 0x04, 'M', 'Q', 'T', 'T',  /* protocol name */
+        0x04,                             /* protocol level */
+        flags,
+        (uint8_t)(opts->keepalive_sec >> 8),
+        (uint8_t)(opts->keepalive_sec & 0xFF),
+    };
+
+    uint32_t remaining = (uint32_t)(sizeof(varhdr) + plen);
+
+    /* Write the packet. */
+    size_t pos = 0;
+    if (pos >= buflen) return -1;
+    buf[pos++] = 0x10; /* CONNECT control packet type */
+
+    int rl = mqtt_varint_encode(buf + pos, buflen - pos, remaining);
+    if (rl < 0) return -1;
+    pos += (size_t)rl;
+
+    if (pos + sizeof(varhdr) > buflen) return -1;
+    memcpy(buf + pos, varhdr, sizeof(varhdr));
+    pos += sizeof(varhdr);
+
+    if (pos + plen > buflen) return -1;
+    memcpy(buf + pos, payload, plen);
+    pos += plen;
+
+    return (int)pos;
 }

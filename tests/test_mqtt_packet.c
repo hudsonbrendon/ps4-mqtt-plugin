@@ -56,10 +56,67 @@ MU_TEST(test_varint_encode_buffer_too_small) {
     mu_check(n < 0);
 }
 
+MU_TEST(test_connect_basic_fields) {
+    uint8_t buf[256];
+    mqtt_connect_opts_t opts = {
+        .client_id = "ps4-sala",
+        .username  = "u",
+        .password  = "p",
+        .keepalive_sec = 60,
+        .clean_session = 1,
+        .will_topic = "ps4/sala/availability",
+        .will_payload = "offline",
+        .will_qos = 1,
+        .will_retain = 1,
+    };
+    int n = mqtt_encode_connect(buf, sizeof(buf), &opts);
+    mu_check(n > 0);
+
+    /* fixed header byte 1 = 0x10 (CONNECT) */
+    mu_assert_int_eq(0x10, buf[0]);
+
+    /* variable header begins after fixed header.
+     * We expect: protocol name length 0x00 0x04 then "MQTT". */
+    /* Skip remaining-length varint (1 or 2 bytes). */
+    int idx = 1;
+    uint32_t remlen = 0;
+    int rl_consumed = mqtt_varint_decode(buf + idx, sizeof(buf) - idx, &remlen);
+    mu_check(rl_consumed > 0);
+    idx += rl_consumed;
+
+    mu_assert_int_eq(0x00, buf[idx++]);
+    mu_assert_int_eq(0x04, buf[idx++]);
+    mu_assert_int_eq('M', buf[idx++]);
+    mu_assert_int_eq('Q', buf[idx++]);
+    mu_assert_int_eq('T', buf[idx++]);
+    mu_assert_int_eq('T', buf[idx++]);
+    /* protocol level = 4 */
+    mu_assert_int_eq(0x04, buf[idx++]);
+    /* connect flags: clean session(0x02) + will(0x04) + will_qos1(0x08)
+       + will_retain(0x20) + password(0x40) + username(0x80) = 0xEE */
+    mu_assert_int_eq(0xEE, buf[idx++]);
+    /* keepalive 60 = 0x00 0x3C */
+    mu_assert_int_eq(0x00, buf[idx++]);
+    mu_assert_int_eq(0x3C, buf[idx]);
+}
+
+MU_TEST(test_connect_buffer_too_small) {
+    uint8_t buf[10];
+    mqtt_connect_opts_t opts = {
+        .client_id = "ps4-sala",
+        .username = "u", .password = "p",
+        .keepalive_sec = 60, .clean_session = 1,
+    };
+    int n = mqtt_encode_connect(buf, sizeof(buf), &opts);
+    mu_check(n < 0);
+}
+
 MU_TEST_SUITE(mqtt_packet_suite) {
     MU_RUN_TEST(test_varint_encode_one_byte);
     MU_RUN_TEST(test_varint_encode_two_bytes);
     MU_RUN_TEST(test_varint_encode_four_bytes);
     MU_RUN_TEST(test_varint_decode_round_trip);
     MU_RUN_TEST(test_varint_encode_buffer_too_small);
+    MU_RUN_TEST(test_connect_basic_fields);
+    MU_RUN_TEST(test_connect_buffer_too_small);
 }

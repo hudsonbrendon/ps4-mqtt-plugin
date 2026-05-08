@@ -13,4 +13,19 @@ int mqtt_varint_encode(uint8_t *buf, size_t buflen, uint32_t value);
  * Returns bytes consumed on success, or -1 on error. */
 int mqtt_varint_decode(const uint8_t *buf, size_t buflen, uint32_t *out);
 
+typedef struct {
+    const char *client_id;       /* required */
+    const char *username;        /* NULL to omit */
+    const char *password;        /* NULL to omit */
+    uint16_t    keepalive_sec;
+    int         clean_session;
+    const char *will_topic;      /* NULL to omit will */
+    const char *will_payload;
+    uint8_t     will_qos;
+    int         will_retain;
+} mqtt_connect_opts_t;
+
+int mqtt_encode_connect(uint8_t *buf, size_t buflen,
+                        const mqtt_connect_opts_t *opts);
+
 #endif
