@@ -1,0 +1,8 @@
+{
+  "broker_host": "192.168.1.10",
+  "broker_port": 1883,
+  "username": "ps4",
+  "password": "change-me",
+  "device_name": "Sala",
+  "poll_interval_sec": 10
+}
