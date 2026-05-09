@@ -2,7 +2,7 @@
 #include "../log.h"
 
 #include <string.h>
-#include <sys/mount.h>
+#include <sys/statfs.h>
 
 int collect_storage(storage_data_t *out) {
     if (!out) return -1;
