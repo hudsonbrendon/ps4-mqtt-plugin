@@ -68,11 +68,12 @@ PS4_CFLAGS   = --target=x86_64-pc-freebsd12-elf \
                -Isrc -Isrc/mqtt -Isrc/ha -Isrc/collectors \
                -Ithird_party/cJSON
 PS4_LDFLAGS  = -m elf_x86_64 -pie --script $(OO)/link.x --eh-frame-hdr \
-               -e module_start \
+               --allow-multiple-definition \
                -L$(OO)/lib \
                -lc -lkernel -lc++ -lScePosix \
                -lSceLibcInternal -lSceNet -lSceNetCtl -lSceSystemService \
-               -lSceLncUtil
+               -lSceLncUtil \
+               $(OO)/lib/crtlib.o
 
 PS4_SOURCES  = \
     src/main.c \
