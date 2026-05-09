@@ -63,7 +63,7 @@ PS4_CREATE   = $(OO)/bin/linux/create-fself
 
 PS4_CFLAGS   = --target=x86_64-pc-freebsd \
                -fPIC -funwind-tables -fuse-init-array \
-               -ffreestanding -nostdlib -nostdlibinc \
+               -ffreestanding -nostdinc \
                -isystem $(OO)/include \
                -isystem $(OO)/include/c++/v1 \
                -O2 -std=c99 \
