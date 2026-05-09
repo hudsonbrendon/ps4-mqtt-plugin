@@ -107,7 +107,7 @@ $(PS4_ELF): $(PS4_OBJS)
 	$(PS4_LD) $(PS4_LDFLAGS) -o $@ $^
 
 $(PS4_PRX): $(PS4_ELF)
-	$(PS4_CREATE) -in=$(PS4_ELF) --out=$(PS4_PRX) --paid 0x3800000000000011
+	$(PS4_CREATE) -in=$(PS4_ELF) --lib=$(PS4_PRX) --paid 0x3800000000000011
 
 prx: $(PS4_PRX)
 
