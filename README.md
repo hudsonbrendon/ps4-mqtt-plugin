@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="ps4-mqtt-plugin" width="480">
+</p>
+
 # ps4-mqtt-plugin
 
 GoldHEN plugin for jailbroken PlayStation 4 (FW 11.00 target) that
