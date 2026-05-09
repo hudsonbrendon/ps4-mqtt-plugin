@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/OpenOrbis
-          key: openorbis-v0.5.4
+          key: openorbis-v0.5.4-strip1
 
       - name: Download OpenOrbis SDK
         if: steps.cache-sdk.outputs.cache-hit != 'true'
@@ -33,7 +33,7 @@ jobs:
           sudo mkdir -p /opt/OpenOrbis
           curl -L https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain/releases/download/v0.5.4/toolchain-llvm-18.tar.gz \
             -o /tmp/oo.tar.gz
-          sudo tar -xzf /tmp/oo.tar.gz -C /opt/OpenOrbis
+          sudo tar -xzf /tmp/oo.tar.gz --strip-components=1 -C /opt/OpenOrbis
           sudo chmod +x /opt/OpenOrbis/PS4Toolchain/bin/linux/* || true
 
       - name: Run host tests
