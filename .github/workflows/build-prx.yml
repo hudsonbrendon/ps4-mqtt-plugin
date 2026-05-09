@@ -3,8 +3,12 @@ name: Build PRX
 on:
   push:
     branches: [main]
+    tags:    ['v*']
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create releases
 
 jobs:
   build:
@@ -65,11 +69,39 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload to release (on tag push)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Compute version (auto on main, tag-driven on tag push)
+        id: version
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            TAG="$VERSION"
+          else
+            VERSION="v0.1.${GITHUB_RUN_NUMBER}"
+            TAG="$VERSION"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "Releasing as $VERSION (tag $TAG)"
+
+      - name: Create release on main push or tag
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: softprops/action-gh-release@v2
         with:
+          tag_name:   ${{ steps.version.outputs.tag }}
+          name:       ${{ steps.version.outputs.version }}
+          body: |
+            Auto-built PRX from commit ${{ github.sha }}.
+
+            **Install:**
+            1. Download `ps4-mqtt.prx` and `config.example.json`
+            2. Edit config with your broker host/credentials
+            3. FTP both to `/data/GoldHEN/plugins/ps4-mqtt/` on the PS4
+            4. Add `ps4-mqtt=/data/GoldHEN/plugins/ps4-mqtt/ps4-mqtt.prx` to `/data/GoldHEN/plugins.ini`
+            5. Reboot the PS4
           files: |
             build/ps4-mqtt.prx
             build/ps4-mqtt.elf
             config.example.json
+          fail_on_unmatched_files: true
+          make_latest: true
