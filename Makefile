@@ -51,3 +51,61 @@ INTEGRATION_SOURCES = tests/integration/test_mqtt_integration.c \
 integration: $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(INTEGRATION_SOURCES) -o $(INTEGRATION_BIN) $(LDFLAGS)
 	./tests/integration/run_integration.sh
+
+# ----- PS4 PRX build (Phase 2) ---------------------------------------------
+# Requires OpenOrbis toolchain. Run via scripts/build-prx.sh which uses
+# Docker, or set OO_PS4_TOOLCHAIN to a native install.
+
+OO          ?= $(OO_PS4_TOOLCHAIN)
+PS4_CC       = clang
+PS4_LD       = ld.lld
+PS4_CREATE   = $(OO)/bin/linux/create-fself
+
+PS4_CFLAGS   = -cc1 -triple x86_64-pc-freebsd \
+               -munwind-tables -fuse-init-array \
+               -isysroot $(OO) -isystem $(OO)/include \
+               -O2 -fPIC -std=c99 \
+               -Isrc -Isrc/mqtt -Isrc/ha -Isrc/collectors \
+               -Ithird_party/cJSON
+PS4_LDFLAGS  = -m elf_x86_64 --eh-frame-hdr --oformat=elf \
+               -pie --script $(OO)/link.x -L$(OO)/lib \
+               -lc -lkernel -lc++ -lScePosix \
+               -lSceLibcInternal -lSceNet -lSceNetCtl -lSceSystemService
+
+PS4_SOURCES  = \
+    src/main.c \
+    src/log_ps4.c \
+    src/config.c \
+    src/publisher.c \
+    src/mqtt/mqtt_packet.c \
+    src/mqtt/mqtt_socket_ps4.c \
+    src/mqtt/mqtt_client.c \
+    src/ha/ha_discovery.c \
+    src/collectors/system_ps4.c \
+    src/collectors/thermal_ps4.c \
+    src/collectors/network_ps4.c \
+    src/collectors/storage_ps4.c \
+    src/collectors/app_ps4.c \
+    third_party/cJSON/cJSON.c
+
+PS4_OBJ_DIR  = $(BUILD_DIR)/ps4
+PS4_OBJS     = $(PS4_SOURCES:%.c=$(PS4_OBJ_DIR)/%.o)
+PS4_ELF      = $(BUILD_DIR)/ps4-mqtt.elf
+PS4_PRX      = $(BUILD_DIR)/ps4-mqtt.prx
+
+.PHONY: prx prx-clean
+
+$(PS4_OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(PS4_CC) $(PS4_CFLAGS) -emit-obj $< -o $@
+
+$(PS4_ELF): $(PS4_OBJS)
+	$(PS4_LD) $(PS4_LDFLAGS) -o $@ $^
+
+$(PS4_PRX): $(PS4_ELF)
+	$(PS4_CREATE) -in=$(PS4_ELF) --out=$(PS4_PRX) --paid 0x3800000000000011
+
+prx: $(PS4_PRX)
+
+prx-clean:
+	rm -rf $(PS4_OBJ_DIR) $(PS4_ELF) $(PS4_PRX)
