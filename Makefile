@@ -61,20 +61,18 @@ PS4_CC       = clang
 PS4_LD       = ld.lld
 PS4_CREATE   = $(OO)/bin/linux/create-fself
 
-PS4_CFLAGS   = --target=x86_64-pc-freebsd \
-               -fPIC -funwind-tables -fuse-init-array \
-               -ffreestanding -nostdlibinc \
-               -isystem $(OO)/include \
-               -isystem $(OO)/include/sce \
-               -isystem $(OO)/include/c++/v1 \
+PS4_CFLAGS   = --target=x86_64-pc-freebsd12-elf \
+               -fPIC -funwind-tables \
+               -isysroot $(OO) -isystem $(OO)/include \
                -O2 -std=c99 \
                -Isrc -Isrc/mqtt -Isrc/ha -Isrc/collectors \
                -Ithird_party/cJSON
-PS4_LDFLAGS  = -m elf_x86_64 --eh-frame-hdr --oformat=elf \
-               -pie --script $(OO)/link.x -L$(OO)/lib \
+PS4_LDFLAGS  = -m elf_x86_64 -pie --script $(OO)/link.x --eh-frame-hdr \
+               -L$(OO)/lib \
                -lc -lkernel -lc++ -lScePosix \
                -lSceLibcInternal -lSceNet -lSceNetCtl -lSceSystemService \
-               -lSceLncUtil
+               -lSceLncUtil \
+               $(OO)/lib/crtlib.o
 
 PS4_SOURCES  = \
     src/main.c \
@@ -107,7 +105,8 @@ $(PS4_ELF): $(PS4_OBJS)
 	$(PS4_LD) $(PS4_LDFLAGS) -o $@ $^
 
 $(PS4_PRX): $(PS4_ELF)
-	$(PS4_CREATE) -in=$(PS4_ELF) --lib=$(PS4_PRX) --paid 0x3800000000000011
+	$(PS4_CREATE) -in=$(PS4_ELF) -out=$(BUILD_DIR)/ps4-mqtt.oelf \
+	    --lib=$(PS4_PRX) --paid 0x3800000000000011
 
 prx: $(PS4_PRX)
 
