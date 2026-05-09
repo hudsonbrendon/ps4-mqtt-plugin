@@ -74,7 +74,7 @@ PS4_LDFLAGS  = -m elf_x86_64 --eh-frame-hdr --oformat=elf \
                -pie --script $(OO)/link.x -L$(OO)/lib \
                -lc -lkernel -lc++ -lScePosix \
                -lSceLibcInternal -lSceNet -lSceNetCtl -lSceSystemService \
-               -lSceLncUtil -lSceAppInstUtil
+               -lSceLncUtil
 
 PS4_SOURCES  = \
     src/main.c \
