@@ -61,10 +61,12 @@ PS4_CC       = clang
 PS4_LD       = ld.lld
 PS4_CREATE   = $(OO)/bin/linux/create-fself
 
-PS4_CFLAGS   = -cc1 -triple x86_64-pc-freebsd \
-               -munwind-tables -fuse-init-array \
-               -isysroot $(OO) -isystem $(OO)/include \
-               -O2 -fPIC -std=c99 \
+PS4_CFLAGS   = --target=x86_64-pc-freebsd \
+               -fPIC -funwind-tables -fuse-init-array \
+               -ffreestanding -nostdlib -nostdlibinc \
+               -isystem $(OO)/include \
+               -isystem $(OO)/include/c++/v1 \
+               -O2 -std=c99 \
                -Isrc -Isrc/mqtt -Isrc/ha -Isrc/collectors \
                -Ithird_party/cJSON
 PS4_LDFLAGS  = -m elf_x86_64 --eh-frame-hdr --oformat=elf \
@@ -97,7 +99,7 @@ PS4_PRX      = $(BUILD_DIR)/ps4-mqtt.prx
 
 $(PS4_OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(PS4_CC) $(PS4_CFLAGS) -emit-obj $< -o $@
+	$(PS4_CC) $(PS4_CFLAGS) -c $< -o $@
 
 $(PS4_ELF): $(PS4_OBJS)
 	$(PS4_LD) $(PS4_LDFLAGS) -o $@ $^
