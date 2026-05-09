@@ -1,8 +1,11 @@
 #include "collectors.h"
 #include "../log.h"
 
+#include <stddef.h>
 #include <string.h>
-#include <sys/sysctl.h>
+
+extern int sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
+                        void *newp, size_t newlen);
 
 extern int sceKernelGetCpuTemperature(int *out_celsius);
 extern int sceKernelGetSocSensorTemperature(int sensor_id, int *out_celsius);

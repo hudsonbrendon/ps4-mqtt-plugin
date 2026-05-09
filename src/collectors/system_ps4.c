@@ -2,9 +2,16 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/sysctl.h>
-#include <sys/time.h>
 #include <time.h>
+
+extern int sysctl(int *name, unsigned int namelen, void *oldp,
+                  size_t *oldlenp, void *newp, size_t newlen);
+extern int sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
+                        void *newp, size_t newlen);
+
+#ifndef CLOCK_UPTIME
+#define CLOCK_UPTIME 5
+#endif
 
 int collect_system(system_data_t *out) {
     if (!out) return -1;
