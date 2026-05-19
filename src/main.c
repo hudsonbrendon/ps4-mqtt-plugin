@@ -13,6 +13,28 @@
 
 #define CONFIG_PATH "/data/GoldHEN/plugins/ps4-mqtt/config.json"
 
+__asm__(
+    ".intel_syntax noprefix \n"
+    ".align 0x8 \n"
+    ".section \".data.sce_module_param\" \n"
+    "_sceProcessParam: \n"
+    "    .quad 0x18 \n"
+    "    .quad 0x13C13F4BF \n"
+    "    .quad 0x4508101 \n"
+    ".att_syntax prefix \n"
+);
+
+__asm__(
+    ".intel_syntax noprefix \n"
+    ".align 0x8 \n"
+    ".data \n"
+    "__dso_handle: \n"
+    "    .quad 0 \n"
+    "_sceLibc: \n"
+    "    .quad 0 \n"
+    ".att_syntax prefix \n"
+);
+
 static pthread_t      g_thread;
 static int            g_thread_started;
 static volatile int   g_stop;
@@ -107,63 +129,37 @@ static void *worker_main(void *arg) {
     return NULL;
 }
 
+__attribute__((visibility("default"))) const char *g_pluginName    = "ps4-mqtt";
+__attribute__((visibility("default"))) const char *g_pluginDesc    = "PS4 telemetry to MQTT/Home Assistant";
+__attribute__((visibility("default"))) const char *g_pluginAuth    = "hudsonbrendon";
+__attribute__((visibility("default"))) unsigned int g_pluginVersion = 0x00000100;
+
 __attribute__((visibility("default")))
-int module_start(size_t argc, const void *argv) {
+int plugin_load(int argc, const char *argv[]) {
     (void)argc; (void)argv;
-    log_init(LOG_LEVEL_INFO);
-
-    if (config_load(CONFIG_PATH, &g_cfg) != 0) {
-        LOG_ERR("plugin: config load failed; not starting worker");
-        return 0;
-    }
-    if (ha_make_slug(g_cfg.device_name, g_slug, sizeof(g_slug)) != 0) {
-        LOG_ERR("plugin: invalid device_name");
-        return 0;
-    }
-
-    char client_id[64];
-    snprintf(client_id, sizeof(client_id), "ps4-mqtt-%s", g_slug);
-    char will_topic[128];
-    snprintf(will_topic, sizeof(will_topic), "ps4/%s/availability", g_slug);
-
-    g_client = mqtt_client_new(g_cfg.broker_host, g_cfg.broker_port,
-                               g_cfg.username, g_cfg.password,
-                               client_id, /*keepalive*/ 60,
-                               will_topic, "offline");
-    if (!g_client) {
-        LOG_ERR("plugin: mqtt_client_new failed");
-        return 0;
-    }
-
-    g_stop = 0;
-    if (pthread_create(&g_thread, NULL, worker_main, NULL) != 0) {
-        LOG_ERR("plugin: pthread_create failed");
-        mqtt_client_free(g_client);
-        g_client = NULL;
-        return 0;
-    }
-    g_thread_started = 1;
-    LOG_INFO("plugin: started; broker=%s:%d device=%s",
-             g_cfg.broker_host, g_cfg.broker_port, g_cfg.device_name);
+    FILE *marker = fopen("/data/ps4-mqtt-loaded.txt", "w");
+    if (marker) { fputs("plugin_load was called\n", marker); fclose(marker); }
     return 0;
 }
 
 __attribute__((visibility("default")))
-int module_stop(size_t argc, const void *argv) {
+int plugin_unload(int argc, const char *argv[]) {
     (void)argc; (void)argv;
-    g_stop = 1;
-    if (g_thread_started) {
-        pthread_join(g_thread, NULL);
-        g_thread_started = 0;
-    }
-    if (g_client) {
-        char avail_topic[128];
-        snprintf(avail_topic, sizeof(avail_topic),
-                 "ps4/%s/availability", g_slug);
-        mqtt_client_publish(g_client, avail_topic, "offline", 1);
-        mqtt_client_free(g_client);
-        g_client = NULL;
-    }
-    LOG_INFO("plugin: stopped");
     return 0;
+}
+
+int module_start(size_t argc, const void *argv) {
+    return plugin_load((int)argc, (const char **)argv);
+}
+
+int module_stop(size_t argc, const void *argv) {
+    return plugin_unload((int)argc, (const char **)argv);
+}
+
+int _init(size_t argc, const void *argv) {
+    return module_start(argc, argv);
+}
+
+int _fini(size_t argc, const void *argv) {
+    return module_stop(argc, argv);
 }

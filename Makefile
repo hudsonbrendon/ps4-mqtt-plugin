@@ -65,31 +65,16 @@ PS4_CFLAGS   = --target=x86_64-pc-freebsd12-elf \
                -fPIC -funwind-tables \
                -isysroot $(OO) -isystem $(OO)/include \
                -O2 -std=c99 \
+               -D_POSIX_C_SOURCE=200809L \
                -Isrc -Isrc/mqtt -Isrc/ha -Isrc/collectors \
                -Ithird_party/cJSON
-PS4_LDFLAGS  = -m elf_x86_64 -pie --script $(OO)/link.x --eh-frame-hdr \
-               --allow-multiple-definition \
+PS4_LDFLAGS  = -m elf_x86_64 -pie --script $(OO)/link.x -e _init --eh-frame-hdr \
+               --export-dynamic \
                -L$(OO)/lib \
-               -lc -lkernel -lc++ -lScePosix \
-               -lSceLibcInternal -lSceNet -lSceNetCtl -lSceSystemService \
-               -lSceLncUtil \
-               $(OO)/lib/crtlib.o
+               -lSceLibcInternal -lkernel -lSceSysmodule -lSceNet
 
 PS4_SOURCES  = \
-    src/main.c \
-    src/log_ps4.c \
-    src/config.c \
-    src/publisher.c \
-    src/mqtt/mqtt_packet.c \
-    src/mqtt/mqtt_socket_ps4.c \
-    src/mqtt/mqtt_client.c \
-    src/ha/ha_discovery.c \
-    src/collectors/system_ps4.c \
-    src/collectors/thermal_ps4.c \
-    src/collectors/network_ps4.c \
-    src/collectors/storage_ps4.c \
-    src/collectors/app_ps4.c \
-    third_party/cJSON/cJSON.c
+    src/main_minimal.c
 
 PS4_OBJ_DIR  = $(BUILD_DIR)/ps4
 PS4_OBJS     = $(PS4_SOURCES:%.c=$(PS4_OBJ_DIR)/%.o)
@@ -107,7 +92,8 @@ $(PS4_ELF): $(PS4_OBJS)
 
 $(PS4_PRX): $(PS4_ELF)
 	$(PS4_CREATE) -in=$(PS4_ELF) -out=$(BUILD_DIR)/ps4-mqtt.oelf \
-	    --lib=$(PS4_PRX) --paid 0x3800000000000011
+	    --lib=$(PS4_PRX) --libname=ps4-mqtt \
+	    --paid 0x3800000000000011 --sdkver 72319233
 
 prx: $(PS4_PRX)
 

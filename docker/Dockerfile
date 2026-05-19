@@ -21,7 +21,7 @@ RUN ln -sf /usr/bin/clang-15 /usr/local/bin/clang && \
 ARG OO_TOOLCHAIN_URL=https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain/releases/download/v0.5.4/toolchain-llvm-18.tar.gz
 RUN mkdir -p /opt/OpenOrbis && \
     curl -L "$OO_TOOLCHAIN_URL" -o /tmp/oo.tar.gz && \
-    tar -xzf /tmp/oo.tar.gz -C /opt/OpenOrbis && \
+    tar -xzf /tmp/oo.tar.gz -C /opt/OpenOrbis --strip-components=1 && \
     rm /tmp/oo.tar.gz && \
     chmod +x $OO_PS4_TOOLCHAIN/bin/linux/* 2>/dev/null || true
 

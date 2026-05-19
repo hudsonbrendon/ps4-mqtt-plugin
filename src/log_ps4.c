@@ -5,10 +5,17 @@
 
 extern int sceKernelDebugOutText(int channel, const char *str);
 
+#define LOG_FILE_PATH "/data/GoldHEN/plugins/ps4-mqtt/log.txt"
+
 static log_level_t g_min_level = LOG_LEVEL_INFO;
 
 void log_init(log_level_t min_level) {
     g_min_level = min_level;
+    FILE *f = fopen(LOG_FILE_PATH, "w");
+    if (f) {
+        fputs("[ps4-mqtt] log opened\n", f);
+        fclose(f);
+    }
 }
 
 void log_write(log_level_t level, const char *fmt, ...) {
@@ -32,4 +39,10 @@ void log_write(log_level_t level, const char *fmt, ...) {
     line[total + 1] = '\0';
 
     sceKernelDebugOutText(0, line);
+
+    FILE *f = fopen(LOG_FILE_PATH, "a");
+    if (f) {
+        fputs(line, f);
+        fclose(f);
+    }
 }
