@@ -78,7 +78,8 @@ PS4_SOURCES  = \
     src/log_ps4.c \
     src/mqtt/mqtt_packet.c \
     src/mqtt/mqtt_socket_ps4.c \
-    src/mqtt/mqtt_client.c
+    src/mqtt/mqtt_client.c \
+    src/collectors/system_ps4.c
 
 PS4_OBJ_DIR  = $(BUILD_DIR)/ps4
 PS4_OBJS     = $(PS4_SOURCES:%.c=$(PS4_OBJ_DIR)/%.o)

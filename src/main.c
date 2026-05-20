@@ -1,5 +1,6 @@
 #include "log.h"
 #include "mqtt/mqtt_client.h"
+#include "collectors/collectors.h"
 
 #include <pthread.h>
 #include <stddef.h>
@@ -41,11 +42,22 @@ static int            g_thread_started;
 static volatile int   g_stop;
 
 static void publish_state(mqtt_client_t *c, long counter) {
-    char buf[32];
+    char buf[64];
     mqtt_client_publish(c, "ps4/ps4/availability", "online", 1);
     mqtt_client_publish(c, "ps4/ps4/state",        "on",     1);
     snprintf(buf, sizeof(buf), "%ld", counter);
     mqtt_client_publish(c, "ps4/ps4/heartbeat", buf, 0);
+
+    system_data_t sys;
+    if (collect_system(&sys) == 0) {
+        snprintf(buf, sizeof(buf), "%lld", (long long)sys.uptime_sec);
+        mqtt_client_publish(c, "ps4/ps4/uptime_sec", buf, 0);
+        snprintf(buf, sizeof(buf), "%llu", (unsigned long long)sys.mem_used_mb);
+        mqtt_client_publish(c, "ps4/ps4/memory/used_mb", buf, 0);
+        snprintf(buf, sizeof(buf), "%llu", (unsigned long long)sys.mem_total_mb);
+        mqtt_client_publish(c, "ps4/ps4/memory/total_mb", buf, 0);
+        mqtt_client_publish(c, "ps4/ps4/firmware", sys.firmware, 1);
+    }
 }
 
 static void *worker_main(void *arg) {
