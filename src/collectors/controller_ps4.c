@@ -46,6 +46,8 @@ extern int scePadOpen(int user_id, int type, int index, void *param);
 extern int scePadGetHandle(int user_id, int type, int index);
 extern int scePadClose(int handle);
 extern int scePadReadState(int handle, OrbisPadData *data);
+extern int scePadReadStateExt(int handle, OrbisPadData *data);
+extern int scePadSetProcessPrivilege(int priv);
 extern int sceUserServiceInitialize(void *param);
 extern int sceUserServiceTerminate(void);
 extern int sceUserServiceGetInitialUser(int *user_id);
@@ -94,6 +96,8 @@ int collect_controller(controller_data_t *out) {
     int initial_user = -1;
     sceUserServiceGetInitialUser(&initial_user);
     scePadInit();
+    int rc_priv = scePadSetProcessPrivilege(1);
+    (void)rc_priv;
 
     int users[] = { initial_user, 0xFF, -1, 0, 1, 0xFE000000 };
     int handle = -1;
@@ -106,34 +110,30 @@ int collect_controller(controller_data_t *out) {
         if (h >= 0) { handle = h; used_user = users[i]; opened = 1; break; }
     }
 
-    ScePadDeviceClassExtendedInformation dext;
-    memset(&dext, 0, sizeof(dext));
-    int rc_dext = -1;
     OrbisPadData data;
     memset(&data, 0, sizeof(data));
+    int rc_readext = -1;
     int rc_read = -1;
 
     if (handle >= 0) {
-        rc_dext = scePadDeviceClassGetExtendedInformation(handle, &dext);
-        rc_read = scePadReadState(handle, &data);
-        if (rc_dext == 0) {
-            out->connected = 1;
-            int lvl = dext.battery_level & 0x0F;
-            out->battery_charging = (dext.battery_level & 0x10) ? 1 : 0;
-            if (lvl > 10) lvl = 10;
-            out->battery_pct = lvl * 10;
-        } else if (rc_read == 0) {
+        rc_readext = scePadReadStateExt(handle, &data);
+        if (rc_readext != 0) {
+            memset(&data, 0, sizeof(data));
+            rc_read = scePadReadState(handle, &data);
+        }
+        if ((rc_readext == 0 || rc_read == 0)) {
             out->connected = data.connected ? 1 : 0;
+            uint8_t batt_raw = data.ext[0];
+            out->battery_charging = (batt_raw & 0x10) ? 1 : 0;
+            int level = batt_raw & 0x0F;
+            if (level > 10) level = 10;
+            out->battery_pct = level * 10;
         }
         if (opened) scePadClose(handle);
     }
 
-    uint8_t *db = (uint8_t *)&dext;
     snprintf(out->debug, sizeof(out->debug),
-             "%02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x",
-             db[0], db[1], db[2], db[3], db[4], db[5], db[6], db[7],
-             db[8], db[9], db[10], db[11], db[12], db[13], db[14], db[15],
-             db[16], db[17], db[18], db[19], db[20], db[21], db[22], db[23]);
+             "connected_only");
 
     out->user_id = used_user;
     out->pad_handle = handle;

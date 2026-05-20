@@ -6,7 +6,15 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
+
+#ifndef CLOCK_UPTIME
+#define CLOCK_UPTIME 5
+#endif
+
+extern int clock_gettime(int, struct timespec *);
+extern long time(long *);
 
 typedef struct {
     int  connected;
@@ -50,6 +58,23 @@ __asm__(
 static pthread_t      g_thread;
 static int            g_thread_started;
 static volatile int   g_stop;
+static long           g_plugin_start_uptime_sec;
+static volatile long  g_publish_count;
+static volatile long  g_reconnect_count;
+static volatile long  g_last_publish_epoch;
+
+static long uptime_now(void) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_UPTIME, &ts) == 0) return (long)ts.tv_sec;
+    return 0;
+}
+
+static void format_duration(char *buf, size_t cap, long secs) {
+    long h = secs / 3600;
+    long m = (secs % 3600) / 60;
+    if (h > 0) snprintf(buf, cap, "%ldh %ldm", h, m);
+    else       snprintf(buf, cap, "%ldm", m);
+}
 
 static void publish_discovery_sensor(mqtt_client_t *c, const char *key,
                                      const char *name, const char *state_topic,
@@ -130,6 +155,16 @@ static void publish_all_discovery(mqtt_client_t *c) {
     publish_discovery_sensor(c, "controller_connected", "PS4 Controller Connected",
                              "ps4/ps4/controller/connected",
                              "", "", "");
+    publish_discovery_sensor(c, "plugin_uptime", "PS4 Plugin Uptime",
+                             "ps4/ps4/plugin/uptime", "", "", "");
+    publish_discovery_sensor(c, "plugin_publishes", "PS4 Plugin Publishes",
+                             "ps4/ps4/plugin/publish_count", "", "", "total_increasing");
+    publish_discovery_sensor(c, "plugin_reconnects", "PS4 Plugin Reconnects",
+                             "ps4/ps4/plugin/reconnect_count", "", "", "total_increasing");
+    publish_discovery_sensor(c, "system_time", "PS4 Time",
+                             "ps4/ps4/system/time", "", "timestamp", "");
+    publish_discovery_sensor(c, "system_boot_time", "PS4 Boot Time",
+                             "ps4/ps4/system/boot_time", "", "timestamp", "");
 }
 
 static void publish_state(mqtt_client_t *c, long counter) {
@@ -175,6 +210,37 @@ static void publish_state(mqtt_client_t *c, long counter) {
         mqtt_client_publish(c, "ps4/ps4/controller/connected",
                             ctrl.connected ? "yes" : "no", 0);
     }
+
+    long plugin_up = uptime_now() - g_plugin_start_uptime_sec;
+    if (plugin_up < 0) plugin_up = 0;
+    snprintf(buf, sizeof(buf), "%ld", plugin_up);
+    mqtt_client_publish(c, "ps4/ps4/plugin/uptime_sec", buf, 0);
+    format_duration(buf, sizeof(buf), plugin_up);
+    mqtt_client_publish(c, "ps4/ps4/plugin/uptime", buf, 0);
+    snprintf(buf, sizeof(buf), "%ld", g_publish_count);
+    mqtt_client_publish(c, "ps4/ps4/plugin/publish_count", buf, 0);
+    snprintf(buf, sizeof(buf), "%ld", g_reconnect_count);
+    mqtt_client_publish(c, "ps4/ps4/plugin/reconnect_count", buf, 0);
+
+    long now_epoch = time(NULL);
+    g_last_publish_epoch = now_epoch;
+
+    time_t t = (time_t)now_epoch;
+    struct tm *tmv = gmtime(&t);
+    if (tmv) {
+        strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S+00:00", tmv);
+        mqtt_client_publish(c, "ps4/ps4/system/time", buf, 0);
+    }
+
+    long boot_epoch = now_epoch - sys.uptime_sec;
+    t = (time_t)boot_epoch;
+    tmv = gmtime(&t);
+    if (tmv) {
+        strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S+00:00", tmv);
+        mqtt_client_publish(c, "ps4/ps4/system/boot_time", buf, 1);
+    }
+
+    g_publish_count++;
 }
 
 static void *worker_main(void *arg) {
@@ -196,6 +262,7 @@ static void *worker_main(void *arg) {
             continue;
         }
 
+        g_reconnect_count++;
         publish_all_discovery(c);
 
         while (!g_stop && mqtt_client_is_connected(c)) {
@@ -218,6 +285,9 @@ __attribute__((visibility("default"))) unsigned int g_pluginVersion = 0x00000100
 __attribute__((visibility("default")))
 int plugin_load(int argc, const char *argv[]) {
     (void)argc; (void)argv;
+    g_plugin_start_uptime_sec = uptime_now();
+    g_publish_count = 0;
+    g_reconnect_count = 0;
 
     mqtt_client_t *c = mqtt_client_new(BROKER_HOST, BROKER_PORT,
                                        BROKER_USER, BROKER_PASS,
