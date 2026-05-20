@@ -41,6 +41,75 @@ static pthread_t      g_thread;
 static int            g_thread_started;
 static volatile int   g_stop;
 
+static void publish_discovery_sensor(mqtt_client_t *c, const char *key,
+                                     const char *name, const char *state_topic,
+                                     const char *unit, const char *dev_class,
+                                     const char *state_class) {
+    char topic[160];
+    char payload[768];
+    snprintf(topic, sizeof(topic),
+             "homeassistant/sensor/ps4_ps4_%s/config", key);
+    int n = snprintf(payload, sizeof(payload),
+        "{"
+        "\"name\":\"%s\","
+        "\"unique_id\":\"ps4_ps4_%s\","
+        "\"state_topic\":\"%s\","
+        "\"availability_topic\":\"ps4/ps4/availability\","
+        "\"payload_available\":\"online\","
+        "\"payload_not_available\":\"offline\","
+        "\"device\":{"
+            "\"identifiers\":[\"ps4_ps4\"],"
+            "\"name\":\"PS4\","
+            "\"manufacturer\":\"Sony\","
+            "\"model\":\"PlayStation 4\","
+            "\"sw_version\":\"11.00\""
+        "}",
+        name, key, state_topic);
+    if (unit && unit[0]) n += snprintf(payload + n, sizeof(payload) - n,
+                                       ",\"unit_of_measurement\":\"%s\"", unit);
+    if (dev_class && dev_class[0]) n += snprintf(payload + n, sizeof(payload) - n,
+                                                 ",\"device_class\":\"%s\"", dev_class);
+    if (state_class && state_class[0]) n += snprintf(payload + n, sizeof(payload) - n,
+                                                     ",\"state_class\":\"%s\"", state_class);
+    snprintf(payload + n, sizeof(payload) - n, "}");
+    mqtt_client_publish(c, topic, payload, 1);
+}
+
+static void publish_discovery_binary(mqtt_client_t *c) {
+    const char *topic = "homeassistant/binary_sensor/ps4_ps4_state/config";
+    const char *payload =
+        "{"
+        "\"name\":\"PS4 State\","
+        "\"unique_id\":\"ps4_ps4_state\","
+        "\"state_topic\":\"ps4/ps4/state\","
+        "\"availability_topic\":\"ps4/ps4/availability\","
+        "\"payload_available\":\"online\","
+        "\"payload_not_available\":\"offline\","
+        "\"payload_on\":\"on\","
+        "\"payload_off\":\"standby\","
+        "\"device\":{"
+            "\"identifiers\":[\"ps4_ps4\"],"
+            "\"name\":\"PS4\","
+            "\"manufacturer\":\"Sony\","
+            "\"model\":\"PlayStation 4\","
+            "\"sw_version\":\"11.00\""
+        "}}";
+    mqtt_client_publish(c, topic, payload, 1);
+}
+
+static void publish_all_discovery(mqtt_client_t *c) {
+    publish_discovery_binary(c);
+    publish_discovery_sensor(c, "uptime_sec", "PS4 Uptime",
+                             "ps4/ps4/uptime_sec",
+                             "s", "duration", "total_increasing");
+    publish_discovery_sensor(c, "heartbeat", "PS4 Heartbeat",
+                             "ps4/ps4/heartbeat",
+                             "", "", "total_increasing");
+    publish_discovery_sensor(c, "firmware", "PS4 Firmware",
+                             "ps4/ps4/firmware",
+                             "", "", "");
+}
+
 static void publish_state(mqtt_client_t *c, long counter) {
     char buf[64];
     mqtt_client_publish(c, "ps4/ps4/availability", "online", 1);
@@ -78,6 +147,8 @@ static void *worker_main(void *arg) {
             for (int i = 0; i < 15 && !g_stop; ++i) sleep(1);
             continue;
         }
+
+        publish_all_discovery(c);
 
         while (!g_stop && mqtt_client_is_connected(c)) {
             publish_state(c, ++counter);
