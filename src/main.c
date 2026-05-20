@@ -284,6 +284,8 @@ __attribute__((visibility("default"))) unsigned int g_pluginVersion = 0x00000100
 
 __attribute__((visibility("default")))
 int plugin_load(int argc, const char *argv[]) {
+    extern void app_set_argv(int argc, const char *argv[]);
+    app_set_argv(argc, argv);
     (void)argc; (void)argv;
     g_plugin_start_uptime_sec = uptime_now();
     g_publish_count = 0;
