@@ -91,8 +91,7 @@ auto-create via MQTT Discovery on each (re)connect.
 | Uptime (raw) | `ps4/ps4/uptime_sec` | System uptime in seconds |
 | Uptime (pretty) | `ps4/ps4/uptime` | Formatted `Xh Ym` / `Ym` |
 | Firmware | `ps4/ps4/firmware` | Hardcoded `11.00` |
-| Game Title ID | `ps4/ps4/game/title_id` | CUSA code, blank in XMB |
-| In Game | `ps4/ps4/game/in_game` | `yes` / `no` |
+| In Game | `ps4/ps4/game/in_game` | `yes` / `no` (best-effort — see roadmap) |
 | Controller Connected | `ps4/ps4/controller/connected` | `yes` / `no` |
 | System Time | `ps4/ps4/system/time` | ISO 8601, UTC |
 | Boot Time | `ps4/ps4/system/boot_time` | ISO 8601, UTC |
@@ -121,8 +120,21 @@ game itself makes.
 - **Temperatures** (CPU °C, SoC °C) — `sceKernelGetCpuTemperature`,
   `sceKernelGetSocSensorTemperature` privileged
 - **Fan RPM** — `sysctlbyname("machdep.fan_speed")`
-- **Game title (name, not just CUSA)** — `sceLncUtilGetAppTitleId`
-  returns -1 inside the game
+- **Game Title ID (CUSA) AND game name** — every non-hook source we
+  tried fails inside the game sandbox:
+  - `sceSystemServiceGetAppIdOfBigApp` returns -2137784305
+  - `sceLncUtilGetAppTitleId` / `sceLncUtilGetAppId` /
+    `sceLncUtilGetApp0DirPath` either error or crash the game
+  - `sceAppInstUtilAppGetInsertedDiscTitleId` crashes the game
+  - `getcwd` crashes the game
+  - `argv[]` from `plugin_load` is empty (no title in it)
+  - `getenv("SCE_TITLEID" / "SCE_BREADCRUMB_DUMP_ROOT" / "HOME" /
+    "PWD")` all return NULL or no CUSA
+  - `open("/proc/self/cmdline", O_RDONLY)` returns -1
+  - `readlink("/proc/self/exe", ...)` not in linkable libs without
+    pulling `-lkernel_sys` (untested for crash safety)
+  - `sceKernelGetSandboxName` not exported by this OpenOrbis
+    toolchain
 - **Per-controller stats** (multiple pads, motion, light bar)
 
 The plan to add them is to integrate the GoldHEN Plugins SDK and

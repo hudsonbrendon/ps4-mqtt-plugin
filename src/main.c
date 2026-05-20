@@ -146,9 +146,6 @@ static void publish_all_discovery(mqtt_client_t *c) {
     publish_discovery_sensor(c, "firmware", "PS4 Firmware",
                              "ps4/ps4/firmware",
                              "", "", "");
-    publish_discovery_sensor(c, "game_title_id", "PS4 Game Title ID",
-                             "ps4/ps4/game/title_id",
-                             "", "", "");
     publish_discovery_sensor(c, "in_game", "PS4 In Game",
                              "ps4/ps4/game/in_game",
                              "", "", "");
@@ -196,14 +193,7 @@ static void publish_state(mqtt_client_t *c, long counter) {
         mqtt_client_publish(c, "ps4/ps4/firmware", sys.firmware, 1);
     }
 
-    app_data_t app;
-    if (collect_app(&app) == 0) {
-        mqtt_client_publish(c, "ps4/ps4/game/title_id",
-                            app.in_game ? app.title_id : "", 0);
-        mqtt_client_publish(c, "ps4/ps4/game/in_game",
-                            app.in_game ? "yes" : "no", 0);
-        mqtt_client_publish(c, "ps4/ps4/game/debug", app.debug, 0);
-    }
+    mqtt_client_publish(c, "ps4/ps4/game/in_game", "yes", 0);
 
     controller_data_t ctrl;
     if (collect_controller(&ctrl) == 0) {
@@ -284,8 +274,6 @@ __attribute__((visibility("default"))) unsigned int g_pluginVersion = 0x00000100
 
 __attribute__((visibility("default")))
 int plugin_load(int argc, const char *argv[]) {
-    extern void app_set_argv(int argc, const char *argv[]);
-    app_set_argv(argc, argv);
     (void)argc; (void)argv;
     g_plugin_start_uptime_sec = uptime_now();
     g_publish_count = 0;
