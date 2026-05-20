@@ -8,6 +8,16 @@
 #include <string.h>
 #include <unistd.h>
 
+typedef struct {
+    int  connected;
+    int  battery_pct;
+    int  battery_charging;
+    int  user_id;
+    int  pad_handle;
+    char debug[96];
+} controller_data_t;
+extern int collect_controller(controller_data_t *out);
+
 __asm__(
     ".intel_syntax noprefix \n"
     ".align 0x8 \n"
@@ -105,8 +115,20 @@ static void publish_all_discovery(mqtt_client_t *c) {
     publish_discovery_sensor(c, "heartbeat", "PS4 Heartbeat",
                              "ps4/ps4/heartbeat",
                              "", "", "total_increasing");
+    publish_discovery_sensor(c, "uptime", "PS4 Uptime",
+                             "ps4/ps4/uptime",
+                             "", "", "");
     publish_discovery_sensor(c, "firmware", "PS4 Firmware",
                              "ps4/ps4/firmware",
+                             "", "", "");
+    publish_discovery_sensor(c, "game_title_id", "PS4 Game Title ID",
+                             "ps4/ps4/game/title_id",
+                             "", "", "");
+    publish_discovery_sensor(c, "in_game", "PS4 In Game",
+                             "ps4/ps4/game/in_game",
+                             "", "", "");
+    publish_discovery_sensor(c, "controller_connected", "PS4 Controller Connected",
+                             "ps4/ps4/controller/connected",
                              "", "", "");
 }
 
@@ -121,11 +143,37 @@ static void publish_state(mqtt_client_t *c, long counter) {
     if (collect_system(&sys) == 0) {
         snprintf(buf, sizeof(buf), "%lld", (long long)sys.uptime_sec);
         mqtt_client_publish(c, "ps4/ps4/uptime_sec", buf, 0);
+
+        long total_min = (long)(sys.uptime_sec / 60);
+        long hours     = total_min / 60;
+        long mins      = total_min % 60;
+        if (hours > 0) {
+            snprintf(buf, sizeof(buf), "%ldh %ldm", hours, mins);
+        } else {
+            snprintf(buf, sizeof(buf), "%ldm", mins);
+        }
+        mqtt_client_publish(c, "ps4/ps4/uptime", buf, 0);
+
         snprintf(buf, sizeof(buf), "%llu", (unsigned long long)sys.mem_used_mb);
         mqtt_client_publish(c, "ps4/ps4/memory/used_mb", buf, 0);
         snprintf(buf, sizeof(buf), "%llu", (unsigned long long)sys.mem_total_mb);
         mqtt_client_publish(c, "ps4/ps4/memory/total_mb", buf, 0);
         mqtt_client_publish(c, "ps4/ps4/firmware", sys.firmware, 1);
+    }
+
+    app_data_t app;
+    if (collect_app(&app) == 0) {
+        mqtt_client_publish(c, "ps4/ps4/game/title_id",
+                            app.in_game ? app.title_id : "", 0);
+        mqtt_client_publish(c, "ps4/ps4/game/in_game",
+                            app.in_game ? "yes" : "no", 0);
+        mqtt_client_publish(c, "ps4/ps4/game/debug", app.debug, 0);
+    }
+
+    controller_data_t ctrl;
+    if (collect_controller(&ctrl) == 0) {
+        mqtt_client_publish(c, "ps4/ps4/controller/connected",
+                            ctrl.connected ? "yes" : "no", 0);
     }
 }
 

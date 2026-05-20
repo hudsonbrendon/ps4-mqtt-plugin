@@ -31,6 +31,7 @@ typedef struct {
     int  in_game;            /* 1 if a game is running, 0 otherwise */
     char title[64];          /* "" when not in game */
     char title_id[16];       /* "" when not in game */
+    char debug[64];
 } app_data_t;
 
 int collect_system (system_data_t  *out);
