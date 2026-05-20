@@ -71,10 +71,14 @@ PS4_CFLAGS   = --target=x86_64-pc-freebsd12-elf \
 PS4_LDFLAGS  = -m elf_x86_64 -pie --script $(OO)/link.x -e _init --eh-frame-hdr \
                --export-dynamic \
                -L$(OO)/lib \
-               -lSceLibcInternal -lkernel -lSceSysmodule -lSceNet
+               -lSceLibcInternal -lkernel -lSceSysmodule -lSceNet -lScePosix
 
 PS4_SOURCES  = \
-    src/main_minimal.c
+    src/main.c \
+    src/log_ps4.c \
+    src/mqtt/mqtt_packet.c \
+    src/mqtt/mqtt_socket_ps4.c \
+    src/mqtt/mqtt_client.c
 
 PS4_OBJ_DIR  = $(BUILD_DIR)/ps4
 PS4_OBJS     = $(PS4_SOURCES:%.c=$(PS4_OBJ_DIR)/%.o)

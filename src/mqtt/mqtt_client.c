@@ -132,10 +132,12 @@ int mqtt_client_ping(mqtt_client_t *c) {
 
 int mqtt_client_disconnect(mqtt_client_t *c) {
     if (!c) return -1;
-    if (c->connected) {
+    if (c->connected && c->fd >= 0) {
         uint8_t buf[2];
         int n = mqtt_encode_disconnect(buf, sizeof(buf));
         mqtt_socket_send(c->fd, buf, (size_t)n);
+        uint8_t drain[16];
+        mqtt_socket_recv(c->fd, drain, sizeof(drain), 1000);
     }
     if (c->fd >= 0) mqtt_socket_close(c->fd);
     c->fd = -1;
