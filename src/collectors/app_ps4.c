@@ -1,20 +1,16 @@
 #include "collectors.h"
 
-#include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 extern int sceSystemServiceGetAppIdOfBigApp(void);
 extern int sceLncUtilGetAppTitleId(int app_id, char *out, int out_len);
-
-static int  g_argc = 0;
-static const char *g_argv[8];
+extern int sceLncUtilGetAppId(int *out);
+extern int sceLncUtilGetApp0DirPath(int app_id, char *buf, int size);
+extern int sceAppInstUtilAppGetInsertedDiscTitleId(char *out, int size);
 
 void app_set_argv(int argc, const char *argv[]) {
-    g_argc = argc < 8 ? argc : 8;
-    for (int i = 0; i < g_argc; ++i) g_argv[i] = argv ? argv[i] : NULL;
+    (void)argc; (void)argv;
 }
 
 static int extract_cusa(const char *src, char *out, size_t out_len) {
@@ -31,63 +27,48 @@ static int extract_cusa(const char *src, char *out, size_t out_len) {
     return (i >= 5) ? 0 : -1;
 }
 
-static int read_cmdline(char *buf, size_t len) {
-    int fd = open("/proc/self/cmdline", 0 /*O_RDONLY*/);
-    if (fd < 0) return -1;
-    int n = (int)read(fd, buf, len - 1);
-    close(fd);
-    if (n <= 0) return -1;
-    buf[n] = '\0';
-    for (int i = 0; i < n; i++) if (buf[i] == '\0') buf[i] = ' ';
-    return n;
-}
-
 int collect_app(app_data_t *out) {
     if (!out) return -1;
     memset(out, 0, sizeof(*out));
 
-    char from_argv[16] = {0};
-    for (int i = 0; i < g_argc; ++i) {
-        if (g_argv[i] && extract_cusa(g_argv[i], from_argv,
-                                      sizeof(from_argv)) == 0) break;
+    int own_app_id = -999;
+    int rc_own = sceLncUtilGetAppId(&own_app_id);
+
+    char dir_path[256] = {0};
+    int rc_dir = -1;
+    int dir_app_id = (rc_own == 0 && own_app_id > 0)
+                     ? own_app_id : sceSystemServiceGetAppIdOfBigApp();
+    if (dir_app_id > 0) {
+        rc_dir = sceLncUtilGetApp0DirPath(dir_app_id, dir_path, sizeof(dir_path));
     }
+    char from_dir[16] = {0};
+    if (rc_dir == 0) extract_cusa(dir_path, from_dir, sizeof(from_dir));
 
-    char from_env[16] = {0};
-    static const char *keys[] = {
-        "SCE_TITLEID", "SCE_BREADCRUMB_DUMP_ROOT",
-        "HOME", "PWD", NULL
-    };
-    for (int i = 0; keys[i]; ++i) {
-        const char *v = getenv(keys[i]);
-        if (v && extract_cusa(v, from_env, sizeof(from_env)) == 0) break;
-    }
+    char disc_title[16] = {0};
+    int rc_disc = sceAppInstUtilAppGetInsertedDiscTitleId(disc_title,
+                                                         sizeof(disc_title));
+    char from_disc[16] = {0};
+    if (rc_disc == 0) extract_cusa(disc_title, from_disc, sizeof(from_disc));
 
-    char cmdline[512] = {0};
-    char from_cmd[16] = {0};
-    int rc_cmd = read_cmdline(cmdline, sizeof(cmdline));
-    if (rc_cmd > 0) extract_cusa(cmdline, from_cmd, sizeof(from_cmd));
-
-    int app_id = sceSystemServiceGetAppIdOfBigApp();
+    int big_app = sceSystemServiceGetAppIdOfBigApp();
     char lnc_title[16] = {0};
     int rc_lnc = -1;
-    if (app_id > 0) {
-        rc_lnc = sceLncUtilGetAppTitleId(app_id, lnc_title,
+    if (big_app > 0) {
+        rc_lnc = sceLncUtilGetAppTitleId(big_app, lnc_title,
                                          sizeof(lnc_title));
     }
 
     snprintf(out->debug, sizeof(out->debug),
-             "argv=%s env=%s cmd=%s(%d) lnc=%s app=%d",
-             from_argv[0]    ? from_argv : "-",
-             from_env[0]     ? from_env  : "-",
-             from_cmd[0]     ? from_cmd  : "-",
-             rc_cmd,
-             lnc_title[0]    ? lnc_title : "-",
-             app_id);
+             "own=%d(%d) dir=%s(%d) disc=%s(%d) lnc=%s big=%d",
+             own_app_id, rc_own,
+             from_dir[0]  ? from_dir  : "-", rc_dir,
+             from_disc[0] ? from_disc : "-", rc_disc,
+             lnc_title[0] ? lnc_title : "-",
+             big_app);
 
     const char *winner = NULL;
-    if (from_argv[0])     winner = from_argv;
-    else if (from_env[0]) winner = from_env;
-    else if (from_cmd[0]) winner = from_cmd;
+    if (from_dir[0])       winner = from_dir;
+    else if (from_disc[0]) winner = from_disc;
     else if (lnc_title[0]) winner = lnc_title;
 
     if (winner) {
